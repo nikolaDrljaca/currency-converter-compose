@@ -2,7 +2,8 @@ package com.drbrosdev.currencyconverter.web
 
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.NetworkInfo
+import android.net.NetworkCapabilities
+import android.os.Build
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -20,7 +21,7 @@ object ServiceBuilder {
             .cache(myCache)
             .addInterceptor { chain ->
                 var request = chain.request()
-                request = if (hasNetwork(context = context)!!)
+                request = if (hasNetwork(context = context))
                 /*
                   *  If there is Internet, get the cache that was stored 5 seconds ago.
                   *  If the cache is older than 5 seconds, then discard it,
@@ -54,14 +55,23 @@ object ServiceBuilder {
         return retrofit.create(service)
     }
 
-    private fun hasNetwork(context: Context): Boolean? {
-        var isConnected: Boolean? = false // Initial Value
-        val connectivityManager =
-            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
-        if (activeNetwork != null && activeNetwork.isConnected)
-            isConnected = true
-        return isConnected
+    private fun hasNetwork(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val nw      = connectivityManager.activeNetwork ?: return false
+            val actNw = connectivityManager.getNetworkCapabilities(nw) ?: return false
+            return when {
+                actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                actNw.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+                //for other device how are able to connect with Ethernet
+                actNw.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+                //for check internet over Bluetooth
+                actNw.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> true
+                else -> false
+            }
+        } else {
+            return connectivityManager.activeNetworkInfo?.isConnected ?: false
+        }
     }
 
 }
