@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -14,6 +16,8 @@ object ServiceBuilder {
     private const val cacheSize = (5 * 1024 * 1024).toLong()
     private const val maxAge = 5
     private const val maxStale = (60 * 60 * 24 * 7)
+
+    private const val baseUrl = "https://api.exchangerate.host/latest/"
 
     fun <T> buildService(service: Class<T>, context: Context): T {
         val myCache = Cache(context.cacheDir, cacheSize)
@@ -47,11 +51,17 @@ object ServiceBuilder {
                 chain.proceed(request)
             }
             .build()
+
+        val moshi = Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+
         val retrofit = Retrofit.Builder()
-            .baseUrl("dummyUrl")
-            .addConverterFactory(MoshiConverterFactory.create())
+            .baseUrl(baseUrl)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .client(client)
             .build()
+
         return retrofit.create(service)
     }
 
